@@ -1,5 +1,6 @@
 import asyncio
 import os
+from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, BotCommand
@@ -15,6 +16,21 @@ MANAGER_USERNAME_LINK = "https://t.me/alitravel_bali"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+
+# --- Render uchun kichik veb-server (Port xatosini oldini olish uchun) ---
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
+app = web.Application()
+app.router.add_get("/", handle)
+
+async def run_web():
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+# -----------------------------------------------------------------------
 
 def get_main_menu():
     return ReplyKeyboardMarkup(
@@ -79,7 +95,7 @@ async def bali_tours(message: types.Message):
             [InlineKeyboardButton(text="🏞 Ubud Tour", callback_data="tour_ubud")],
             [InlineKeyboardButton(text="🌋 Kintamani Vulkan", callback_data="tour_kintamani")],
             [InlineKeyboardButton(text="🐬 Lovina Dolphins", callback_data="tour_lovina")],
-            [InlineKeyboardButton(text="🏝️ Nusa Penida Oroli", callback_data="tour_nusa")],
+            [InlineKeyboardButton(text="🏝️️ Nusa Penida Oroli", callback_data="tour_nusa")],
             [InlineKeyboardButton(text="🚁 Helicopter Tour", callback_data="tour_helicopter")],
             [InlineKeyboardButton(text="🌊 Melasti Beach", callback_data="tour_melasti")],
             [InlineKeyboardButton(text="🌴 Nusa Dua", callback_data="tour_nusadua")]
@@ -167,11 +183,9 @@ async def forward_to_manager(message: types.Message):
     )
 
     try:
-        # 1. Menejerga mijoz ma'lumotini va xabarini forward qilamiz
         await bot.send_message(MANAGER_CHAT_ID, user_info, parse_mode="HTML")
         await message.forward(chat_id=MANAGER_CHAT_ID)
         
-        # 2. Klientga javob qaytaramiz va o'zingizning link tugmangizni chiqaramiz
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="💬 Menejer bilan to'g'ridan-to'g'ri yozishish", url=MANAGER_USERNAME_LINK)]
@@ -191,6 +205,9 @@ async def forward_to_manager(message: types.Message):
         await message.answer("Xabarni yuborishda xatolik yuz berdi. Iltimos, to'g'ridan-to'g'ri bog'laning:", reply_markup=keyboard_err)
 
 async def main():
+    # Render port talabini qondirish uchun veb-serverni ishga tushiramiz
+    await run_web()
+    
     await set_bot_commands(bot)
     print("Bot muvaffaqiyatli ishga tushdi va tayyor!")
     await bot.delete_webhook(drop_pending_updates=True)
